@@ -51,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
           <Text style={[styles.label, { marginTop: 14 }]}>Backend API URL</Text>
           <TextInput
             style={styles.input}
-            placeholder="https://author-studio-backend.onrender.com"
+            placeholder="https://asb001.onrender.com"
             placeholderTextColor="#64748B"
             value={backendUrl}
             onChangeText={setBackendUrl}

@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: author-studio-backend
+    name: asb001
     env: node
     plan: free
-    region: oregon
+    region: frankfurt
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start

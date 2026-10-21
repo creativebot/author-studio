@@ -30,6 +30,10 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Voice output (TTS) states
+  const [voiceResponsesEnabled, setVoiceResponsesEnabled] = useState(true);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
   const timerRef = useRef<any>(null);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -47,7 +51,59 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
     };
   }, [isRecording]);
 
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+    }
+  };
+
+  const speakText = (text: string, msgId?: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+
+    if (speakingMsgId === msgId) {
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    // Clean markdown formatting before speaking
+    const cleanText = text
+      .replace(/[*_#`~]/g, '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.05; // Natural conversational cadence
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find(
+      (v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('David'))
+    );
+    if (naturalVoice) utterance.voice = naturalVoice;
+
+    utterance.onstart = () => {
+      setSpeakingMsgId(msgId || 'auto');
+    };
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleToggleRecord = async () => {
+    // If speaking, stop immediately so Gemini doesn't talk over the author
+    stopSpeaking();
+
     if (isRecording) {
       try {
         setIsProcessing(true);
@@ -80,6 +136,7 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
   };
 
   const handleSendMessage = async () => {
+    stopSpeaking();
     const textToSend = inputText.trim();
     if (!textToSend || isProcessing) return;
 
@@ -91,13 +148,19 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
       const result = await ApiService.sendSoundingBoardMessage(textToSend);
       onTelemetryUpdate(
         {
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3.8-flash',
           raw_response: result.reply,
           latency_ms: result.latency_ms
         },
         null
       );
       onRefreshProject();
+
+      // Read reply aloud if voice responses are enabled
+      if (voiceResponsesEnabled && result.reply) {
+        speakText(result.reply, `reply_${Date.now()}`);
+      }
+
       setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 200);
@@ -105,7 +168,7 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
       setErrorMessage(err.message || 'Error processing thought with Gemini');
       onTelemetryUpdate(
         {
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3.8-flash',
           error: err.message
         },
         null
@@ -124,10 +187,27 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.infoBanner}>
-        <Text style={styles.infoTitle}>Socratic Sounding Board</Text>
-        <Text style={styles.infoDesc}>
-          Voice brain-dump your theories, observations, and drills. Gemini acts as an intellectually rigorous editor to co-design the structure with you.
-        </Text>
+        <View style={styles.infoTextContainer}>
+          <Text style={styles.infoTitle}>Socratic Sounding Board</Text>
+          <Text style={styles.infoDesc}>
+            Voice brain-dump your theories and drills. Gemini answers back and co-designs the book with you.
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.voiceToggleBtn, voiceResponsesEnabled && styles.voiceToggleBtnActive]}
+          onPress={() => {
+            const next = !voiceResponsesEnabled;
+            setVoiceResponsesEnabled(next);
+            if (!next) stopSpeaking();
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.voiceToggleIcon}>{voiceResponsesEnabled ? '🔊' : '🔇'}</Text>
+          <Text style={styles.voiceToggleText}>
+            {voiceResponsesEnabled ? 'Voice: ON' : 'Voice: OFF'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView ref={scrollRef} style={styles.chatScroll} contentContainerStyle={styles.chatScrollContent}>
@@ -148,7 +228,21 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
                 msg.role === 'user' ? styles.userBubble : styles.modelBubble
               ]}
             >
-              <Text style={styles.roleLabel}>{msg.role === 'user' ? 'YOU (AUTHOR)' : 'GEMINI (EDITOR)'}</Text>
+              <View style={styles.messageHeaderRow}>
+                <Text style={styles.roleLabel}>{msg.role === 'user' ? 'YOU (AUTHOR)' : 'GEMINI (EDITOR)'}</Text>
+                {msg.role === 'model' && (
+                  <TouchableOpacity
+                    style={styles.listenBtn}
+                    onPress={() => speakText(msg.content, msg.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.listenBtnText}>
+                      {speakingMsgId === msg.id ? '⏹️ Stop' : '🔊 Listen'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <Text style={styles.messageText}>{msg.content}</Text>
 
               {msg.extracted_concepts && msg.extracted_concepts.length > 0 && (
@@ -232,7 +326,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B'
+    borderBottomColor: '#1E293B',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12
+  },
+  infoTextContainer: {
+    flex: 1
   },
   infoTitle: {
     color: '#38BDF8',
@@ -244,6 +345,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     lineHeight: 16
+  },
+  voiceToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 4
+  },
+  voiceToggleBtnActive: {
+    backgroundColor: '#064E3B',
+    borderColor: '#059669'
+  },
+  voiceToggleIcon: {
+    fontSize: 13
+  },
+  voiceToggleText: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: '700'
   },
   chatScroll: {
     flex: 1
@@ -278,7 +402,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
-    maxWidth: '90%'
+    maxWidth: '92%'
   },
   userBubble: {
     backgroundColor: '#1E293B',
@@ -292,12 +416,30 @@ const styles = StyleSheet.create({
     borderColor: '#1E293B',
     borderBottomLeftRadius: 2
   },
+  messageHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6
+  },
   roleLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#64748B',
-    marginBottom: 6
+    color: '#64748B'
+  },
+  listenBtn: {
+    backgroundColor: '#1E293B',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  listenBtnText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '700'
   },
   messageText: {
     color: '#F8FAFC',

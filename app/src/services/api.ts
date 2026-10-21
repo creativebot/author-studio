@@ -1,6 +1,6 @@
 import { ProjectData, DiffSuggestion } from '../types';
 
-let customBackendUrl = 'http://localhost:3001';
+let customBackendUrl = 'https://author-studio-backend.onrender.com';
 let userApiKey = '';
 
 export const ApiConfig = {

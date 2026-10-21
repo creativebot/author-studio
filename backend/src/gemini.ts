@@ -71,7 +71,7 @@ Always respond in valid JSON with this schema:
   ]
 }`;
 
-    const model = 'gemini-2.0-flash';
+    const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
     const response = await ai.models.generateContent({
       model: model,
       contents: [
@@ -127,7 +127,7 @@ Always respond in valid JSON with this schema:
 Clean up obvious stuttering, repeated words, and verbal fillers (such as "um", "uh", "like") while strictly preserving the author's original words, cadence, phrasing, and technical terminology. Do not summarize or editorialize.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
       contents: [
         {
           role: 'user',
@@ -187,7 +187,7 @@ Instructions:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
       contents: [
         {
           role: 'user',

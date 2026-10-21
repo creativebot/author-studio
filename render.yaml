@@ -14,3 +14,5 @@ services:
         value: "10000"
       - key: GEMINI_API_KEY
         sync: false
+      - key: APP_SECRET_TOKEN
+        sync: false

@@ -9,11 +9,13 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }) => {
   const [apiKey, setApiKey] = useState(ApiConfig.getApiKey());
+  const [secretToken, setSecretToken] = useState(ApiConfig.getSecretToken());
   const [backendUrl, setBackendUrl] = useState(ApiConfig.getBackendUrl());
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSave = () => {
     ApiConfig.setApiKey(apiKey.trim());
+    ApiConfig.setSecretToken(secretToken.trim());
     ApiConfig.setBackendUrl(backendUrl.trim());
     setSavedNotice(true);
     setTimeout(() => {
@@ -27,35 +29,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
       <View style={styles.overlay}>
         <View style={styles.modalCard}>
           <View style={styles.header}>
-            <Text style={styles.title}>⚙️ Project Settings</Text>
+            <Text style={styles.title}>⚙️ Security & Settings</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Google AI Studio Gemini API Key</Text>
+          <Text style={styles.label}>Author Secret Passphrase (Auth Protection)</Text>
           <TextInput
             style={styles.input}
             secureTextEntry
-            placeholder="AIzaSy... (leave blank to use backend .env)"
+            placeholder="Enter your private secret token..."
             placeholderTextColor="#64748B"
-            value={apiKey}
-            onChangeText={setApiKey}
+            value={secretToken}
+            onChangeText={setSecretToken}
           />
           <Text style={styles.hint}>
-            Your key stays local in your session. You can also configure GEMINI_API_KEY directly in the backend .env.
+            Protects your cloud server so only you can use your Gemini quota and access your manuscript.
           </Text>
 
           <Text style={[styles.label, { marginTop: 14 }]}>Backend API URL</Text>
           <TextInput
             style={styles.input}
-            placeholder="http://localhost:3001"
+            placeholder="https://author-studio-backend.onrender.com"
             placeholderTextColor="#64748B"
             value={backendUrl}
             onChangeText={setBackendUrl}
           />
           <Text style={styles.hint}>
-            Default: http://localhost:3001 (or your remote backend server IP).
+            Change this if you rename your service on Render.
+          </Text>
+
+          <Text style={[styles.label, { marginTop: 14 }]}>Google AI Studio Key (Optional Override)</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            placeholder="AIzaSy... (leave blank to use Render cloud key)"
+            placeholderTextColor="#64748B"
+            value={apiKey}
+            onChangeText={setApiKey}
+          />
+          <Text style={styles.hint}>
+            Optional. If already set in Render Environment, you can leave this blank.
           </Text>
 
           {savedNotice && <Text style={styles.savedText}>✓ Settings saved!</Text>}

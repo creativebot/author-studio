@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
@@ -11,6 +11,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+const APP_SECRET_TOKEN = process.env.APP_SECRET_TOKEN || '';
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -18,27 +19,37 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- Root Landing & Health ---
+// --- Discreet Root Landing & Health ---
 app.get('/', (req: Request, res: Response) => {
-  res.send(`
-    <div style="font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; border-radius: 12px; max-width: 600px; margin: 40px auto; text-align: center; border: 1px solid #1e293b;">
-      <h1 style="color: #38bdf8; margin-bottom: 8px;">🎙️ Author Studio API</h1>
-      <p style="color: #94a3b8; font-size: 16px;">Cloud Backend is Live & Running on Render</p>
-      <div style="display: inline-block; background: #064e3b; color: #6ee7b7; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; margin: 16px 0;">
-        ✓ Operational & Connected to Gemini
-      </div>
-      <p style="color: #64748b; font-size: 13px;">Plug <code>https://author-studio-backend.onrender.com</code> into your App Settings.</p>
-    </div>
-  `);
+  res.status(200).json({ status: 'active', version: '2.1' });
 });
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'Author Studio API',
-    gemini_key_configured: !!process.env.GEMINI_API_KEY
+    auth_enabled: !!APP_SECRET_TOKEN
   });
+});
+
+// --- Security Authentication Middleware ---
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // If no secret token is configured yet, allow requests (backward compatibility until user sets secret)
+  if (!APP_SECRET_TOKEN) {
+    return next();
+  }
+
+  const authHeader = req.headers['authorization'];
+  const secretHeader = req.headers['x-app-secret'];
+
+  const token = secretHeader || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+
+  if (!token || token !== APP_SECRET_TOKEN) {
+    return res.status(401).json({
+      error: 'Unauthorized: Invalid or missing Author Secret Token. Please check your App Settings.'
+    });
+  }
+
+  next();
 });
 
 // --- Project & Structure State ---

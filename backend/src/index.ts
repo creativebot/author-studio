@@ -8,6 +8,7 @@ import { ProjectStore } from './projectStore.js';
 import { SnapshotService } from './snapshotService.js';
 import { GeminiService } from './gemini.js';
 import { DebugSnapshot } from './types.js';
+import { AuthService } from './auth.js';
 
 dotenv.config();
 
@@ -30,31 +31,63 @@ if (fs.existsSync(PUBLIC_DIR)) {
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    auth_enabled: !!APP_SECRET_TOKEN
+    auth_enabled: true,
+    author_email: AuthService.getAuthorEmail()
+  });
+});
+
+// --- Google Auth Verification Endpoint ---
+app.post('/api/auth/google', async (req: Request, res: Response) => {
+  const { id_token } = req.body;
+  if (!id_token) {
+    return res.status(400).json({ error: 'id_token is required' });
+  }
+
+  const user = await AuthService.verifyGoogleToken(id_token);
+  if (!user) {
+    return res.status(403).json({
+      error: `Access Denied: Only the book author (${AuthService.getAuthorEmail()}) is authorized to access Author Studio.`
+    });
+  }
+
+  res.json({
+    authorized: true,
+    user
   });
 });
 
 // --- Security Authentication Middleware for API ---
-app.use('/api', (req: Request, res: Response, next: NextFunction) => {
-  if (req.path === '/health') return next();
-
-  // If no secret token is configured yet, allow requests (backward compatibility until user sets secret)
-  if (!APP_SECRET_TOKEN) {
-    return next();
-  }
+app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
+  if (req.path === '/health' || req.path === '/auth/google') return next();
 
   const authHeader = req.headers['authorization'];
   const secretHeader = req.headers['x-app-secret'];
+  const googleTokenHeader = req.headers['x-google-token'];
 
-  const token = secretHeader || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+  // Check 1: Google ID Token (Bearer token or x-google-token)
+  const candidateGoogleToken = (googleTokenHeader as string) ||
+    (authHeader && authHeader.startsWith('Bearer ') && authHeader.length > 50 ? authHeader.substring(7) : null);
 
-  if (!token || token !== APP_SECRET_TOKEN) {
-    return res.status(401).json({
-      error: 'Unauthorized: Invalid or missing Author Secret Token. Please check your App Settings.'
-    });
+  if (candidateGoogleToken) {
+    const verifiedUser = await AuthService.verifyGoogleToken(candidateGoogleToken);
+    if (verifiedUser) {
+      (req as any).user = verifiedUser;
+      return next();
+    }
   }
 
-  next();
+  // Check 2: Fallback Secret Token (for scripts and backend-to-backend calls)
+  const candidateSecret = (secretHeader as string) ||
+    (authHeader && authHeader.startsWith('Bearer ') && authHeader.length < 50 ? authHeader.substring(7) : null);
+
+  if (APP_SECRET_TOKEN && candidateSecret === APP_SECRET_TOKEN) {
+    return next();
+  }
+
+  // If no auth succeeded
+  return res.status(401).json({
+    error: `Unauthorized: Please sign in with your Google Account (${AuthService.getAuthorEmail()}).`
+  });
 });
 
 // --- Project & Structure State ---

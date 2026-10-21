@@ -6,7 +6,8 @@ import { ManuscriptDiffView } from './src/components/ManuscriptDiffView';
 import { ConceptVaultView } from './src/components/ConceptVaultView';
 import { SnapshotModal } from './src/components/SnapshotModal';
 import { SettingsModal } from './src/components/SettingsModal';
-import { ApiService } from './src/services/api';
+import { GoogleLoginModal } from './src/components/GoogleLoginModal';
+import { ApiService, ApiConfig } from './src/services/api';
 import { ProjectData } from './src/types';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [authenticatedUser, setAuthenticatedUser] = useState<any>(ApiConfig.getAuthorProfile());
 
   // Active Telemetry state for debug snapshots
   const [lastLlmTelemetry, setLastLlmTelemetry] = useState<any>(null);
@@ -25,49 +27,53 @@ export default function App() {
       const data = await ApiService.getProject();
       setProject(data);
     } catch (err: any) {
-      console.warn('Initial project fetch failed, backend might be starting:', err.message);
-      // Fallback empty data if backend is still starting up
-      setProject({
-        book_title: 'Untitled Non-Fiction Work',
-        author_thesis: '',
-        style_guidelines: ['Preserve authentic intellectual cadence'],
-        structure_tree: [
-          {
-            id: 'node_1',
-            title: 'Core Philosophy & Mechanics',
-            type: 'part',
-            order: 1,
-            content: '',
-            children: []
-          }
-        ],
-        concept_vault: {
-          theories: [],
-          practices: [],
-          axioms: [],
-          open_questions: []
-        },
-        sounding_board_history: []
-      });
+      console.warn('Project fetch error:', err.message);
+      // If unauthorized, clear auth state so login modal appears
+      if (err.message && err.message.includes('Unauthorized')) {
+        ApiConfig.logout();
+        setAuthenticatedUser(null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadProject();
+    const token = ApiConfig.getGoogleToken();
+    const secret = ApiConfig.getSecretToken();
+    if (token || secret) {
+      loadProject();
+    } else {
+      setLoading(false);
+    }
   }, []);
+
+  const handleLoginSuccess = (user: any) => {
+    setAuthenticatedUser(user);
+    setLoading(true);
+    loadProject();
+  };
+
+  const handleLogout = () => {
+    ApiConfig.logout();
+    setAuthenticatedUser(null);
+    setProject(null);
+  };
 
   const handleTelemetryUpdate = (llm: any, audio: any) => {
     if (llm) setLastLlmTelemetry(llm);
     if (audio) setLastAudioTelemetry(audio);
   };
 
+  if (!authenticatedUser && !ApiConfig.getGoogleToken() && !ApiConfig.getSecretToken()) {
+    return <GoogleLoginModal onLoginSuccess={handleLoginSuccess} />;
+  }
+
   if (loading || !project) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#38BDF8" />
-        <Text style={styles.loadingText}>Initializing Author Studio...</Text>
+        <Text style={styles.loadingText}>Connecting to Author Cloud...</Text>
       </View>
     );
   }
@@ -81,6 +87,8 @@ export default function App() {
         onSelectTab={setCurrentTab}
         onOpenSnapshot={() => setIsSnapshotOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onLogout={handleLogout}
+        authorEmail={authenticatedUser?.email}
         bookTitle={project.book_title}
       />
 

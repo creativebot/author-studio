@@ -6,6 +6,8 @@ interface HeaderProps {
   onSelectTab: (tab: 'sounding_board' | 'manuscript' | 'vault') => void;
   onOpenSnapshot: () => void;
   onOpenSettings: () => void;
+  onLogout?: () => void;
+  authorEmail?: string;
   bookTitle: string;
 }
 
@@ -14,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   onOpenSnapshot,
   onOpenSettings,
+  onLogout,
+  authorEmail,
   bookTitle
 }) => {
   return (

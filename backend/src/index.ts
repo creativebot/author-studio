@@ -261,9 +261,12 @@ app.get('*', (req: Request, res: Response) => {
 });
 
 // Start Server
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`\n=================================================`);
   console.log(`🎙️  Author Studio API running at http://localhost:${port}`);
   console.log(`📸  Snapshots stored in: ${process.cwd()}\\debug_snapshots`);
   console.log(`=================================================\n`);
+
+  // Initialize latest manuscript from GitHub if available
+  await ProjectStore.initFromGitHub();
 });

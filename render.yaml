@@ -16,3 +16,5 @@ services:
         sync: false
       - key: APP_SECRET_TOKEN
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false

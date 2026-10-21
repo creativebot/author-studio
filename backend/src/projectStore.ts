@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { StructureNode, RejectedEditFeedback, SocraticMessage } from './types.js';
+import { GitHubSyncService } from './githubSync.js';
 
 const DATA_FILE = path.resolve(process.cwd(), 'author_studio_data.json');
 
@@ -82,8 +83,25 @@ export class ProjectStore {
     if (!this.data) return;
     try {
       fs.writeFileSync(DATA_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      // Asynchronously mirror updates directly to GitHub
+      GitHubSyncService.syncProjectToGitHub(this.data).catch(err => {
+        console.warn('[ProjectStore] Background GitHub sync failed:', err.message);
+      });
     } catch (err) {
       console.error('[ProjectStore] Failed to save data file:', err);
+    }
+  }
+
+  static async initFromGitHub(): Promise<void> {
+    try {
+      const remoteData = await GitHubSyncService.loadProjectFromGitHub();
+      if (remoteData && remoteData.book_title) {
+        console.log('[ProjectStore] Loaded latest project version from GitHub repository!');
+        this.data = remoteData;
+        fs.writeFileSync(DATA_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      }
+    } catch (err: any) {
+      console.warn('[ProjectStore] GitHub init error:', err.message);
     }
   }
 

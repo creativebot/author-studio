@@ -1,16 +1,46 @@
 import { ProjectData, DiffSuggestion } from '../types';
 
-let customBackendUrl = 'https://asb001.onrender.com';
+let customBackendUrl = typeof window !== 'undefined' && window.location.origin.includes('onrender.com')
+  ? window.location.origin
+  : 'https://asb001.onrender.com';
+
 let userApiKey = '';
 let appSecretToken = '';
 
+// Load persisted credentials on web
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    appSecretToken = window.localStorage.getItem('asb_secret_token') || '';
+    userApiKey = window.localStorage.getItem('asb_api_key') || '';
+    const savedUrl = window.localStorage.getItem('asb_backend_url');
+    if (savedUrl) customBackendUrl = savedUrl;
+  } catch (e) {
+    console.warn('Could not read localStorage:', e);
+  }
+}
+
 export const ApiConfig = {
   getBackendUrl: () => customBackendUrl,
-  setBackendUrl: (url: string) => { customBackendUrl = url.replace(/\/$/, ''); },
+  setBackendUrl: (url: string) => {
+    customBackendUrl = url.replace(/\/$/, '');
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('asb_backend_url', customBackendUrl);
+    }
+  },
   getApiKey: () => userApiKey,
-  setApiKey: (key: string) => { userApiKey = key; },
+  setApiKey: (key: string) => {
+    userApiKey = key;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('asb_api_key', key);
+    }
+  },
   getSecretToken: () => appSecretToken,
-  setSecretToken: (token: string) => { appSecretToken = token; }
+  setSecretToken: (token: string) => {
+    appSecretToken = token;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('asb_secret_token', token);
+    }
+  }
 };
 
 const getHeaders = (extra: Record<string, string> = {}): Record<string, string> => {

@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { ProjectStore } from './projectStore.js';
 import { SnapshotService } from './snapshotService.js';
 import { GeminiService } from './gemini.js';
@@ -12,6 +14,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 const APP_SECRET_TOKEN = process.env.APP_SECRET_TOKEN || '';
+const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -19,10 +22,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- Discreet Root Landing & Health ---
-app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'active', version: '2.1' });
-});
+// Serve static frontend UI (if built)
+if (fs.existsSync(PUBLIC_DIR)) {
+  app.use(express.static(PUBLIC_DIR));
+}
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
@@ -31,8 +34,10 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// --- Security Authentication Middleware ---
-app.use((req: Request, res: Response, next: NextFunction) => {
+// --- Security Authentication Middleware for API ---
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  if (req.path === '/health') return next();
+
   // If no secret token is configured yet, allow requests (backward compatibility until user sets secret)
   if (!APP_SECRET_TOKEN) {
     return next();
@@ -211,6 +216,15 @@ app.get('/api/debug/snapshots/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Snapshot not found' });
   }
   res.json(snapshot);
+});
+
+// --- SPA Client Fallback ---
+app.get('*', (req: Request, res: Response) => {
+  const indexHtml = path.join(PUBLIC_DIR, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    return res.sendFile(indexHtml);
+  }
+  res.status(200).json({ status: 'active', version: '2.1' });
 });
 
 // Start Server

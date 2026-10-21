@@ -12,8 +12,8 @@ import { ProjectData } from './src/types';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<'sounding_board' | 'manuscript' | 'vault'>('sounding_board');
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [project, setProject] = useState<ProjectData | null>(() => ApiConfig.getLocalProjectBackup());
+  const [loading, setLoading] = useState(false);
   const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [authenticatedUser, setAuthenticatedUser] = useState<any>(ApiConfig.getAuthorProfile());
@@ -24,14 +24,32 @@ export default function App() {
 
   const loadProject = async () => {
     try {
-      const data = await ApiService.getProject();
-      setProject(data);
+      const serverData = await ApiService.getProject();
+      const localBackup = ApiConfig.getLocalProjectBackup();
+
+      // If server has empty history (e.g. Render container restarted/redeployed)
+      // but local backup has messages, auto-restore server from local backup!
+      if (
+        localBackup &&
+        localBackup.sounding_board_history &&
+        localBackup.sounding_board_history.length > 0 &&
+        (!serverData.sounding_board_history || serverData.sounding_board_history.length < localBackup.sounding_board_history.length)
+      ) {
+        console.log('[Auto-Persistence] Restoring server state from local backup...');
+        await ApiService.updateProject(localBackup);
+        setProject(localBackup);
+        return;
+      }
+
+      // Otherwise save server updates locally
+      ApiConfig.saveLocalProjectBackup(serverData);
+      setProject(serverData);
     } catch (err: any) {
       console.warn('Project fetch error:', err.message);
-      // If unauthorized, clear auth state so login modal appears
-      if (err.message && err.message.includes('Unauthorized')) {
-        ApiConfig.logout();
-        setAuthenticatedUser(null);
+      // Fallback: If network error or cold start, keep using local backup!
+      const fallback = ApiConfig.getLocalProjectBackup();
+      if (fallback) {
+        setProject(fallback);
       }
     } finally {
       setLoading(false);
@@ -43,8 +61,6 @@ export default function App() {
     const secret = ApiConfig.getSecretToken();
     if (token || secret) {
       loadProject();
-    } else {
-      setLoading(false);
     }
   }, []);
 

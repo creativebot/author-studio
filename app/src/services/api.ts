@@ -64,6 +64,26 @@ export const ApiConfig = {
       }
     }
   },
+  getLocalProjectBackup: (): ProjectData | null => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = window.localStorage.getItem('asb_project_backup');
+        if (raw) return JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to read local project backup:', e);
+      }
+    }
+    return null;
+  },
+  saveLocalProjectBackup: (project: ProjectData) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem('asb_project_backup', JSON.stringify(project));
+      } catch (e) {
+        console.warn('Failed to save local project backup:', e);
+      }
+    }
+  },
   logout: () => {
     googleIdToken = '';
     authorProfile = null;

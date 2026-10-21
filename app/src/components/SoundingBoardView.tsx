@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Platform
 } from 'react-native';
-import { ApiService } from '../services/api';
+import { ApiService, ApiConfig } from '../services/api';
 import { AudioService } from '../services/audio';
 import { ProjectData } from '../types';
 

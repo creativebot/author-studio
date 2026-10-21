@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AuthorStudioDebugSnapshot",
+  "type": "object",
+  "required": ["snapshot_id", "timestamp", "feature_context", "state"],
+  "properties": {
+    "snapshot_id": {
+      "type": "string",
+      "description": "Unique identifier, e.g. snapshot_20261021_125000_123"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "feature_context": {
+      "type": "string",
+      "enum": ["sounding_board_chat", "voice_dictation", "diff_review", "structure_evolution", "general_system"],
+      "description": "Which part of the app was active when the snapshot was taken"
+    },
+    "user_notes": {
+      "type": "string",
+      "description": "Optional user voice or text note explaining what went wrong"
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "active_section_id": { "type": ["string", "null"] },
+        "active_section_title": { "type": ["string", "null"] },
+        "active_text": { "type": ["string", "null"] },
+        "selection_range": {
+          "type": ["object", "null"],
+          "properties": {
+            "start": { "type": "integer" },
+            "end": { "type": "integer" },
+            "selected_text": { "type": "string" }
+          }
+        },
+        "structure_tree": { "type": "array" },
+        "concept_vault": { "type": "object" },
+        "pending_diff": { "type": ["object", "null"] },
+        "recent_rejected_edits": { "type": "array" }
+      }
+    },
+    "llm_telemetry": {
+      "type": ["object", "null"],
+      "properties": {
+        "model": { "type": "string" },
+        "system_instruction": { "type": "string" },
+        "prompt_payload": { "type": "object" },
+        "raw_response": { "type": "string" },
+        "parsed_response": { "type": ["object", "string", "null"] },
+        "latency_ms": { "type": "integer" },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "audio_telemetry": {
+      "type": ["object", "null"],
+      "properties": {
+        "duration_seconds": { "type": "number" },
+        "mime_type": { "type": "string" },
+        "bytes_size": { "type": "integer" },
+        "transcription_result": { "type": ["string", "null"] },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "client_info": {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string", "enum": ["android", "web", "ios"] },
+        "version": { "type": "string" },
+        "screen": { "type": "string" }
+      }
+    }
+  }
+}

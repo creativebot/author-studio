@@ -7,11 +7,13 @@ let customBackendUrl = typeof window !== 'undefined' && window.location.origin.i
 let userApiKey = '';
 let appSecretToken = '';
 let googleIdToken = '';
+let sessionToken = '';
 let authorProfile: { name: string; email: string; picture?: string } | null = null;
 
 // Load persisted credentials on web
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
+    sessionToken = window.localStorage.getItem('asb_session_token') || '';
     appSecretToken = window.localStorage.getItem('asb_secret_token') || '';
     userApiKey = window.localStorage.getItem('asb_api_key') || '';
     googleIdToken = window.localStorage.getItem('asb_google_token') || '';
@@ -44,6 +46,13 @@ export const ApiConfig = {
     appSecretToken = token;
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem('asb_secret_token', token);
+    }
+  },
+  getSessionToken: () => sessionToken,
+  setSessionToken: (token: string) => {
+    sessionToken = token;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('asb_session_token', token);
     }
   },
   getGoogleToken: () => googleIdToken,
@@ -86,8 +95,10 @@ export const ApiConfig = {
   },
   logout: () => {
     googleIdToken = '';
+    sessionToken = '';
     authorProfile = null;
     if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('asb_session_token');
       window.localStorage.removeItem('asb_google_token');
       window.localStorage.removeItem('asb_author_profile');
     }
@@ -98,7 +109,10 @@ const getHeaders = (extra: Record<string, string> = {}): Record<string, string> 
   const headers: Record<string, string> = {
     ...extra
   };
-  if (googleIdToken) {
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken}`;
+    headers['x-session-token'] = sessionToken;
+  } else if (googleIdToken) {
     headers['Authorization'] = `Bearer ${googleIdToken}`;
     headers['x-google-token'] = googleIdToken;
   } else if (appSecretToken) {
@@ -122,6 +136,9 @@ export const ApiService = {
       throw new Error(err.error || 'Google login failed');
     }
     const data = await res.json();
+    if (data.session_token) {
+      ApiConfig.setSessionToken(data.session_token);
+    }
     ApiConfig.setGoogleToken(idToken);
     ApiConfig.setAuthorProfile(data.user);
     return data.user;

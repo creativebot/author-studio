@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, SafeAreaView, StatusBar, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View, SafeAreaView, StatusBar, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { Header } from './src/components/Header';
 import { SoundingBoardView } from './src/components/SoundingBoardView';
 import { ManuscriptDiffView } from './src/components/ManuscriptDiffView';
@@ -17,6 +17,7 @@ export default function App() {
   const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [authenticatedUser, setAuthenticatedUser] = useState<any>(ApiConfig.getAuthorProfile());
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Active Telemetry state for debug snapshots
   const [lastLlmTelemetry, setLastLlmTelemetry] = useState<any>(null);
@@ -24,6 +25,7 @@ export default function App() {
 
   const loadProject = async () => {
     try {
+      setLoadError(null);
       const serverData = await ApiService.getProject();
       const localBackup = ApiConfig.getLocalProjectBackup();
 
@@ -46,10 +48,35 @@ export default function App() {
       setProject(serverData);
     } catch (err: any) {
       console.warn('Project fetch error:', err.message);
-      // Fallback: If network error or cold start, keep using local backup!
+
+      // If session expired or unauthorized, reset auth so Google login appears cleanly
+      if (err.message && err.message.includes('Unauthorized')) {
+        ApiConfig.logout();
+        setAuthenticatedUser(null);
+        setProject(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoadError(err.message || 'Connecting to server...');
+
+      // Fallback: If network error or cold start, keep using local backup or default
       const fallback = ApiConfig.getLocalProjectBackup();
       if (fallback) {
         setProject(fallback);
+      } else {
+        const defaultProject: ProjectData = {
+          book_title: 'Untitled Non-Fiction Work',
+          author_thesis: '',
+          style_guidelines: ['Preserve authentic intellectual cadence'],
+          structure_tree: [
+            { id: 'node_1', title: 'Core Philosophy & Mechanics', type: 'part', order: 1, content: '', children: [] },
+            { id: 'node_2', title: 'Applied Protocols & Drills', type: 'part', order: 2, content: '', children: [] }
+          ],
+          concept_vault: { theories: [], practices: [], axioms: [], open_questions: [] },
+          sounding_board_history: []
+        };
+        setProject(defaultProject);
       }
     } finally {
       setLoading(false);
@@ -57,9 +84,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    const token = ApiConfig.getGoogleToken();
-    const secret = ApiConfig.getSecretToken();
-    if (token || secret) {
+    const hasAuth = !!ApiConfig.getSessionToken() || !!ApiConfig.getGoogleToken() || !!ApiConfig.getSecretToken();
+    if (hasAuth) {
+      setLoading(true);
       loadProject();
     }
   }, []);
@@ -81,15 +108,29 @@ export default function App() {
     if (audio) setLastAudioTelemetry(audio);
   };
 
-  if (!authenticatedUser && !ApiConfig.getGoogleToken() && !ApiConfig.getSecretToken()) {
+  const hasCredentials = !!authenticatedUser || !!ApiConfig.getSessionToken() || !!ApiConfig.getGoogleToken() || !!ApiConfig.getSecretToken();
+
+  if (!hasCredentials) {
     return <GoogleLoginModal onLoginSuccess={handleLoginSuccess} />;
   }
 
-  if (loading || !project) {
+  if (loading && !project) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#38BDF8" />
         <Text style={styles.loadingText}>Connecting to Author Cloud...</Text>
+        <Text style={styles.loadingSubtext}>
+          {loadError ? loadError : 'Server is waking up (Render free tier spin-up can take ~30s on first load)...'}
+        </Text>
+
+        <View style={styles.loadingActionRow}>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadProject}>
+            <Text style={styles.retryBtnText}>🔄 Retry Now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.reauthBtn} onPress={handleLogout}>
+            <Text style={styles.reauthBtnText}>🔑 Re-Authenticate</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -105,11 +146,11 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onLogout={handleLogout}
         authorEmail={authenticatedUser?.email}
-        bookTitle={project.book_title}
+        bookTitle={project?.book_title || 'Untitled Non-Fiction'}
       />
 
       <View style={styles.body}>
-        {currentTab === 'sounding_board' && (
+        {currentTab === 'sounding_board' && project && (
           <SoundingBoardView
             project={project}
             onRefreshProject={loadProject}
@@ -117,7 +158,7 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'manuscript' && (
+        {currentTab === 'manuscript' && project && (
           <ManuscriptDiffView
             project={project}
             onRefreshProject={loadProject}
@@ -125,7 +166,7 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'vault' && (
+        {currentTab === 'vault' && project && (
           <ConceptVaultView
             project={project}
             onRefreshProject={loadProject}
@@ -139,10 +180,10 @@ export default function App() {
         currentFeature={currentTab}
         activeState={{
           project_summary: {
-            title: project.book_title,
-            sections_count: project.structure_tree.length,
-            theories_count: project.concept_vault.theories.length,
-            practices_count: project.concept_vault.practices.length
+            title: project?.book_title,
+            sections_count: project?.structure_tree?.length || 0,
+            theories_count: project?.concept_vault?.theories?.length || 0,
+            practices_count: project?.concept_vault?.practices?.length || 0
           },
           currentTab
         }}
@@ -174,11 +215,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#020617',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
     gap: 12
   },
   loadingText: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  loadingSubtext: {
     color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: '500'
+    fontSize: 12,
+    textAlign: 'center',
+    maxWidth: 320,
+    lineHeight: 18,
+    marginTop: 4
+  },
+  loadingActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16
+  },
+  retryBtn: {
+    backgroundColor: '#0284C7',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13
+  },
+  reauthBtn: {
+    backgroundColor: '#1E293B',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  reauthBtnText: {
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontSize: 13
   }
 });

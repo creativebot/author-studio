@@ -50,9 +50,12 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
     });
   }
 
+  const session_token = AuthService.createSessionToken(user);
+
   res.json({
     authorized: true,
-    user
+    user,
+    session_token
   });
 });
 
@@ -62,23 +65,29 @@ app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
 
   const authHeader = req.headers['authorization'];
   const secretHeader = req.headers['x-app-secret'];
-  const googleTokenHeader = req.headers['x-google-token'];
+  const tokenHeader = req.headers['x-session-token'] || req.headers['x-google-token'];
 
-  // Check 1: Google ID Token (Bearer token or x-google-token)
-  const candidateGoogleToken = (googleTokenHeader as string) ||
-    (authHeader && authHeader.startsWith('Bearer ') && authHeader.length > 50 ? authHeader.substring(7) : null);
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  const candidateToken = (tokenHeader as string) || bearerToken;
 
-  if (candidateGoogleToken) {
-    const verifiedUser = await AuthService.verifyGoogleToken(candidateGoogleToken);
-    if (verifiedUser) {
-      (req as any).user = verifiedUser;
+  // Check 1: 30-Day Author Session Token (Instant HMAC check, works permanently across reloads)
+  if (candidateToken) {
+    const sessionUser = AuthService.verifySessionToken(candidateToken);
+    if (sessionUser) {
+      (req as any).user = sessionUser;
+      return next();
+    }
+
+    // Check 2: Google ID Token verification
+    const googleUser = await AuthService.verifyGoogleToken(candidateToken);
+    if (googleUser) {
+      (req as any).user = googleUser;
       return next();
     }
   }
 
-  // Check 2: Fallback Secret Token (for scripts and backend-to-backend calls)
-  const candidateSecret = (secretHeader as string) ||
-    (authHeader && authHeader.startsWith('Bearer ') && authHeader.length < 50 ? authHeader.substring(7) : null);
+  // Check 3: Fallback Secret Token (for scripts and backend-to-backend calls)
+  const candidateSecret = (secretHeader as string) || (bearerToken && bearerToken.length < 50 ? bearerToken : null);
 
   if (APP_SECRET_TOKEN && candidateSecret === APP_SECRET_TOKEN) {
     return next();

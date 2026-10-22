@@ -1,7 +1,10 @@
+import crypto from 'crypto';
+
 const AUTHOR_EMAIL = (process.env.AUTHOR_EMAIL || 'daniel.poludyonny@gmail.com').toLowerCase();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '436412031999-4ba6ochv7pcmqkuh59h6sdlqean3vs0j.apps.googleusercontent.com';
+const SESSION_SECRET = process.env.APP_SECRET_TOKEN || 'author_studio_session_secret_2026';
 
-// In-memory cache for verified tokens to avoid hitting Google on every request
+// In-memory cache for verified Google ID tokens
 const tokenCache = new Map<string, { email: string; name: string; picture: string; expiresAt: number }>();
 
 export interface GoogleUser {
@@ -11,6 +14,48 @@ export interface GoogleUser {
 }
 
 export class AuthService {
+  /**
+   * Create a long-lived 30-day Author Session Token
+   * This guarantees the author stays logged in across days/reloads without Google ID token expiration!
+   */
+  static createSessionToken(user: GoogleUser): string {
+    const payload = JSON.stringify({
+      email: user.email.toLowerCase(),
+      name: user.name,
+      picture: user.picture || '',
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+    const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+    return Buffer.from(`${payload}.${hmac}`).toString('base64');
+  }
+
+  /**
+   * Verify long-lived 30-day session token
+   */
+  static verifySessionToken(token: string): GoogleUser | null {
+    if (!token) return null;
+    try {
+      const decoded = Buffer.from(token, 'base64').toString('utf-8');
+      const parts = decoded.split('.');
+      if (parts.length !== 2) return null;
+      const [payloadStr, hmac] = parts;
+      const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
+      if (hmac !== expectedHmac) return null;
+
+      const data = JSON.parse(payloadStr);
+      if (Date.now() > data.exp) return null; // Expired
+      if (data.email.toLowerCase() !== AUTHOR_EMAIL) return null; // Not author
+
+      return {
+        email: data.email,
+        name: data.name,
+        picture: data.picture
+      };
+    } catch {
+      return null;
+    }
+  }
+
   static async verifyGoogleToken(idToken: string): Promise<GoogleUser | null> {
     if (!idToken) return null;
 

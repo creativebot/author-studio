@@ -78,15 +78,14 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({ onLoginSucce
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.badge}>🔒 AUTHOR LOCKDOWN</Text>
+        <Text style={styles.badge}>🔒 PRIVATE WORKSPACE</Text>
         <Text style={styles.title}>Author Studio</Text>
         <Text style={styles.subtitle}>
           Private, voice-first non-fiction writing studio.
         </Text>
         <Text style={styles.accessNotice}>
-          Access is strictly restricted to author:
+          Authorized author account required
         </Text>
-        <Text style={styles.authorEmail}>daniel.poludyonny@gmail.com</Text>
 
         {loading ? (
           <View style={styles.loadingBox}>
@@ -154,19 +153,7 @@ const styles = StyleSheet.create({
   accessNotice: {
     fontSize: 12,
     color: '#64748B',
-    marginBottom: 4
-  },
-  authorEmail: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#F59E0B',
-    backgroundColor: '#1E293B',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 20
+    marginBottom: 16
   },
   btnWrapper: {
     minHeight: 50,

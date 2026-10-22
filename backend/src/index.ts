@@ -31,8 +31,7 @@ if (fs.existsSync(PUBLIC_DIR)) {
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    auth_enabled: true,
-    author_email: AuthService.getAuthorEmail()
+    auth_enabled: true
   });
 });
 
@@ -46,7 +45,7 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
   const user = await AuthService.verifyGoogleToken(id_token);
   if (!user) {
     return res.status(403).json({
-      error: `Access Denied: Only the book author (${AuthService.getAuthorEmail()}) is authorized to access Author Studio.`
+      error: 'Access Denied: Only the authorized book author account can access this workspace.'
     });
   }
 
@@ -95,7 +94,7 @@ app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
 
   // If no auth succeeded
   return res.status(401).json({
-    error: `Unauthorized: Please sign in with your Google Account (${AuthService.getAuthorEmail()}).`
+    error: 'Unauthorized: Please sign in with your authorized Google Account.'
   });
 });
 

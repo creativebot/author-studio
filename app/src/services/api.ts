@@ -1,4 +1,4 @@
-﻿import { ProjectData, DiffSuggestion } from '../types';
+import { ProjectData, DiffSuggestion } from '../types';
 
 let customBackendUrl = typeof window !== 'undefined' && window.location.origin.includes('onrender.com')
   ? window.location.origin
@@ -165,7 +165,10 @@ export const ApiService = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Failed to update project: ${res.statusText}`);
     }
-    return res.json();
+    const data = await res.json();
+    // Immediately persist to local storage backup
+    ApiConfig.saveLocalProjectBackup(data);
+    return data;
   },
 
   async sendSoundingBoardMessage(message: string): Promise<any> {

@@ -29,6 +29,18 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
   const [inputText, setInputText] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+
+  // Dynamic height calculation for sounding board dictation input
+  const getSoundingInputHeight = (text: string, isFocused: boolean) => {
+    const raw = text || '';
+    const lineCount = raw.split('\n').length;
+    const charCount = raw.length;
+    const estimatedWrapLines = Math.ceil(charCount / 50);
+    const totalLines = Math.max(lineCount, estimatedWrapLines, 1);
+    const minH = isFocused ? 140 : 54;
+    const calculated = totalLines * 22 + 26;
+    return Math.max(minH, Math.min(calculated, 380));
+  };
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -246,7 +258,13 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
                 )}
               </View>
 
-              <Text style={styles.messageText}>{msg.content}</Text>
+              <View style={styles.messageTextContainer}>
+                {(msg.content || '').split('\n').map((line, idx) => (
+                  <Text key={idx} style={styles.messageText}>
+                    {line.trim().length === 0 ? '\u00A0' : line}
+                  </Text>
+                ))}
+              </View>
 
               {msg.extracted_concepts && msg.extracted_concepts.length > 0 && (
                 <View style={styles.conceptsBox}>
@@ -282,7 +300,11 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
       <View style={styles.inputArea}>
         <View style={styles.inputRow}>
           <TextInput
-            style={[styles.textInput, isInputFocused && styles.textInputFocused]}
+            style={[
+              styles.textInput,
+              { height: getSoundingInputHeight(inputText, isInputFocused) },
+              isInputFocused && styles.textInputFocused
+            ]}
             multiline
             blurOnSubmit={false}
             placeholder={isRecording ? 'Listening to your voice dictation...' : 'Dictate or type your thoughts (Enter for line breaks)...'}
@@ -453,12 +475,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700'
   },
+  messageTextContainer: {
+    marginTop: 2
+  },
   messageText: {
     color: '#F8FAFC',
     fontSize: 14,
-    lineHeight: 22,
-    whiteSpace: 'pre-wrap'
-  } as any,
+    lineHeight: 22
+  },
   conceptsBox: {
     marginTop: 12,
     paddingTop: 10,

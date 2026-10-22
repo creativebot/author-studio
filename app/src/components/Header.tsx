@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface HeaderProps {
@@ -24,7 +24,12 @@ export const Header: React.FC<HeaderProps> = ({
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>AUTHOR STUDIO</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.brandTitle}>AUTHOR STUDIO</Text>
+            <View style={styles.versionBadge}>
+              <Text style={styles.versionBadgeText}>v2.3</Text>
+            </View>
+          </View>
           <Text style={styles.bookSubTitle} numberOfLines={1}>{bookTitle || 'Untitled Non-Fiction'}</Text>
         </View>
 
@@ -95,6 +100,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     color: '#38BDF8'
+  },
+  versionBadge: {
+    backgroundColor: '#0369A1',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4
+  },
+  versionBadgeText: {
+    color: '#E0F2FE',
+    fontSize: 10,
+    fontWeight: '700'
   },
   bookSubTitle: {
     fontSize: 15,

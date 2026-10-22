@@ -21,6 +21,16 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Prevent browser from caching index.html so updates are visible immediately on reload
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path === '/' || req.path.endsWith('.html') || !path.extname(req.path)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Serve static frontend UI (if built)
@@ -263,9 +273,12 @@ app.get('/api/debug/snapshots/:id', (req: Request, res: Response) => {
 app.get('*', (req: Request, res: Response) => {
   const indexHtml = path.join(PUBLIC_DIR, 'index.html');
   if (fs.existsSync(indexHtml)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.sendFile(indexHtml);
   }
-  res.status(200).json({ status: 'active', version: '2.1' });
+  res.status(200).json({ status: 'active', version: '2.3' });
 });
 
 // Start Server

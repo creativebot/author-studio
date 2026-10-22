@@ -5,7 +5,8 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  ActivityIndicator
 } from 'react-native';
 import { ApiService } from '../services/api';
 import { ProjectData } from '../types';
@@ -33,27 +34,60 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
   const [editContent, setEditContent] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Status & saving indicators
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Dynamic height calculation: auto-enlarges as text is typed or added
+  const getDynamicHeight = (text: string, isFocused: boolean) => {
+    const raw = text || '';
+    const lineCount = raw.split('\n').length;
+    const charCount = raw.length;
+    const estimatedWrapLines = Math.ceil(charCount / 50);
+    const totalLines = Math.max(lineCount, estimatedWrapLines, 1);
+    const minH = isFocused ? 320 : 160;
+    const calculated = totalLines * 24 + 48;
+    return Math.max(minH, Math.min(calculated, 800));
+  };
+
+  // Renders multiline text with complete preservation of blank lines and paragraphs
+  const renderMultilineText = (text: string) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return (
+      <View style={styles.cardBodyContainer}>
+        {lines.map((line, idx) => (
+          <Text key={idx} style={styles.cardBodyLine}>
+            {line.trim().length === 0 ? '\u00A0' : line}
+          </Text>
+        ))}
+      </View>
+    );
+  };
+
   const handleAddNewItem = async () => {
     if (!newTitle.trim() || !newContent.trim()) return;
 
+    setIsSaving(true);
+    setSaveStatus('Saving concept to Vault & GitHub...');
     try {
       if (activeTab === 'theories') {
         project.concept_vault.theories.push({
           id: `th_${Date.now()}`,
           name: newTitle.trim(),
-          description: newContent.trim()
+          description: newContent // Preserves verbatim newlines and empty lines
         });
       } else if (activeTab === 'practices') {
         project.concept_vault.practices.push({
           id: `pr_${Date.now()}`,
           name: newTitle.trim(),
-          protocol: newContent.trim()
+          protocol: newContent // Preserves verbatim newlines and empty lines
         });
       } else if (activeTab === 'axioms') {
         project.concept_vault.axioms.push({
           id: `ax_${Date.now()}`,
           context: newTitle.trim(),
-          statement: newContent.trim()
+          statement: newContent // Preserves verbatim newlines and empty lines
         });
       }
 
@@ -61,9 +95,14 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
       setNewTitle('');
       setNewContent('');
       setIsAdding(false);
+      setSaveStatus('✓ Saved to Vault & GitHub!');
+      setTimeout(() => setSaveStatus(null), 3000);
       onRefreshProject();
     } catch (err: any) {
       console.error('Failed to add concept:', err);
+      setSaveStatus(`❌ Save error: ${err.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -77,41 +116,50 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
     setEditingId(null);
     setEditTitle('');
     setEditContent('');
+    setFocusedField(null);
   };
 
   const handleSaveEdit = async () => {
     if (!editingId || !editTitle.trim() || !editContent.trim()) return;
 
+    setIsSaving(true);
+    setSaveStatus('Saving changes to Vault & GitHub...');
     try {
       if (activeTab === 'theories') {
         const item = project.concept_vault.theories.find(t => t.id === editingId);
         if (item) {
           item.name = editTitle.trim();
-          item.description = editContent; // Preserves newlines and breaks
+          item.description = editContent; // Preserves verbatim newlines and empty lines
         }
       } else if (activeTab === 'practices') {
         const item = project.concept_vault.practices.find(p => p.id === editingId);
         if (item) {
           item.name = editTitle.trim();
-          item.protocol = editContent; // Preserves newlines and breaks
+          item.protocol = editContent; // Preserves verbatim newlines and empty lines
         }
       } else if (activeTab === 'axioms') {
         const item = project.concept_vault.axioms.find(a => a.id === editingId);
         if (item) {
           item.context = editTitle.trim();
-          item.statement = editContent; // Preserves newlines and breaks
+          item.statement = editContent; // Preserves verbatim newlines and empty lines
         }
       }
 
       await ApiService.updateProject({ concept_vault: project.concept_vault });
       handleCancelEdit();
+      setSaveStatus('✓ Changes saved to Vault & GitHub!');
+      setTimeout(() => setSaveStatus(null), 3000);
       onRefreshProject();
     } catch (err: any) {
       console.error('Failed to save edit:', err);
+      setSaveStatus(`❌ Save error: ${err.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteItem = async (id: string) => {
+    setIsSaving(true);
     try {
       if (activeTab === 'theories') {
         project.concept_vault.theories = project.concept_vault.theories.filter(t => t.id !== id);
@@ -123,9 +171,14 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
 
       await ApiService.updateProject({ concept_vault: project.concept_vault });
       if (editingId === id) handleCancelEdit();
+      setSaveStatus('✓ Deleted from Vault');
+      setTimeout(() => setSaveStatus(null), 2500);
       onRefreshProject();
     } catch (err: any) {
       console.error('Failed to delete item:', err);
+      setSaveStatus(`❌ Delete error: ${err.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -177,6 +230,13 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
       </View>
 
       <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent}>
+        {saveStatus && (
+          <View style={[styles.statusBanner, saveStatus.startsWith('❌') ? styles.statusError : styles.statusSuccess]}>
+            {isSaving && <ActivityIndicator size="small" color="#ECFDF5" style={{ marginRight: 8 }} />}
+            <Text style={styles.statusText}>{saveStatus}</Text>
+          </View>
+        )}
+
         {activeTab === 'theories' && (
           <View>
             {project.concept_vault.theories.map((item) => (
@@ -195,6 +255,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={[
                         styles.formInput,
                         styles.formTextArea,
+                        { height: getDynamicHeight(editContent, focusedField === `edit_${item.id}`) },
                         focusedField === `edit_${item.id}` && styles.formTextAreaFocused
                       ]}
                       value={editContent}
@@ -209,7 +270,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                     />
                     <View style={styles.counterRow}>
                       <Text style={styles.counterHint}>
-                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                        {focusedField === `edit_${item.id}` ? '✨ Auto-enlarging as you type (Max 4,000 symbols)' : 'Click to enlarge • Enter for line breaks'}
                       </Text>
                       <Text style={[
                         styles.counterText,
@@ -220,15 +281,19 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       </Text>
                     </View>
                     <View style={styles.cardActionRow}>
-                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)} disabled={isSaving}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit} disabled={isSaving}>
                           <Text style={styles.cancelText}>Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
-                          <Text style={styles.submitText}>Save Changes</Text>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? (
+                            <ActivityIndicator size="small" color="#0F172A" />
+                          ) : (
+                            <Text style={styles.submitText}>Save Changes</Text>
+                          )}
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -244,7 +309,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                         <Text style={styles.editBtnText}>✏️ Edit</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.cardBody}>{item.description}</Text>
+                    {renderMultilineText(item.description)}
                   </View>
                 )}
               </View>
@@ -270,6 +335,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={[
                         styles.formInput,
                         styles.formTextArea,
+                        { height: getDynamicHeight(editContent, focusedField === `edit_${item.id}`) },
                         focusedField === `edit_${item.id}` && styles.formTextAreaFocused
                       ]}
                       value={editContent}
@@ -284,7 +350,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                     />
                     <View style={styles.counterRow}>
                       <Text style={styles.counterHint}>
-                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                        {focusedField === `edit_${item.id}` ? '✨ Auto-enlarging as you type (Max 4,000 symbols)' : 'Click to enlarge • Enter for line breaks'}
                       </Text>
                       <Text style={[
                         styles.counterText,
@@ -295,15 +361,19 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       </Text>
                     </View>
                     <View style={styles.cardActionRow}>
-                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)} disabled={isSaving}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit} disabled={isSaving}>
                           <Text style={styles.cancelText}>Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
-                          <Text style={styles.submitText}>Save Changes</Text>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? (
+                            <ActivityIndicator size="small" color="#0F172A" />
+                          ) : (
+                            <Text style={styles.submitText}>Save Changes</Text>
+                          )}
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -319,7 +389,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                         <Text style={styles.editBtnText}>✏️ Edit</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.cardBody}>{item.protocol}</Text>
+                    {renderMultilineText(item.protocol)}
                   </View>
                 )}
               </View>
@@ -345,6 +415,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={[
                         styles.formInput,
                         styles.formTextArea,
+                        { height: getDynamicHeight(editContent, focusedField === `edit_${item.id}`) },
                         focusedField === `edit_${item.id}` && styles.formTextAreaFocused
                       ]}
                       value={editContent}
@@ -359,7 +430,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                     />
                     <View style={styles.counterRow}>
                       <Text style={styles.counterHint}>
-                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                        {focusedField === `edit_${item.id}` ? '✨ Auto-enlarging as you type (Max 4,000 symbols)' : 'Click to enlarge • Enter for line breaks'}
                       </Text>
                       <Text style={[
                         styles.counterText,
@@ -370,15 +441,19 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       </Text>
                     </View>
                     <View style={styles.cardActionRow}>
-                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)} disabled={isSaving}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit} disabled={isSaving}>
                           <Text style={styles.cancelText}>Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
-                          <Text style={styles.submitText}>Save Changes</Text>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? (
+                            <ActivityIndicator size="small" color="#0F172A" />
+                          ) : (
+                            <Text style={styles.submitText}>Save Changes</Text>
+                          )}
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -394,7 +469,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                         <Text style={styles.editBtnText}>✏️ Edit</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.cardBody}>{item.statement}</Text>
+                    {renderMultilineText(item.statement)}
                   </View>
                 )}
               </View>
@@ -435,6 +510,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                   style={[
                     styles.formInput,
                     styles.formTextArea,
+                    { height: getDynamicHeight(newContent, focusedField === 'new') },
                     focusedField === 'new' && styles.formTextAreaFocused
                   ]}
                   multiline
@@ -449,7 +525,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                 />
                 <View style={styles.counterRow}>
                   <Text style={styles.counterHint}>
-                    {focusedField === 'new' ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                    {focusedField === 'new' ? '✨ Auto-enlarging as you type (Max 4,000 symbols)' : 'Click to enlarge • Enter for line breaks'}
                   </Text>
                   <Text style={[
                     styles.counterText,
@@ -460,11 +536,15 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                   </Text>
                 </View>
                 <View style={styles.formActions}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsAdding(false)}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsAdding(false)} disabled={isSaving}>
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.submitBtn} onPress={handleAddNewItem}>
-                    <Text style={styles.submitText}>Save to Vault</Text>
+                  <TouchableOpacity style={styles.submitBtn} onPress={handleAddNewItem} disabled={isSaving}>
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color="#0F172A" />
+                    ) : (
+                      <Text style={styles.submitText}>Save to Vault</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -533,6 +613,30 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40
   },
+  statusBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  statusSuccess: {
+    backgroundColor: '#064E3B',
+    borderColor: '#059669',
+    borderWidth: 1
+  },
+  statusError: {
+    backgroundColor: '#7F1D1D',
+    borderColor: '#DC2626',
+    borderWidth: 1
+  },
+  statusText: {
+    color: '#ECFDF5',
+    fontSize: 13,
+    fontWeight: '600'
+  },
   card: {
     backgroundColor: '#0F172A',
     borderRadius: 10,
@@ -571,12 +675,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 12
   },
-  cardBody: {
+  cardBodyContainer: {
+    marginTop: 4
+  },
+  cardBodyLine: {
     color: '#E2E8F0',
-    fontSize: 13,
-    lineHeight: 22,
-    whiteSpace: 'pre-wrap'
-  } as any,
+    fontSize: 14,
+    lineHeight: 22
+  },
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -592,9 +698,8 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#CBD5E1',
     fontSize: 13,
-    lineHeight: 18,
-    whiteSpace: 'pre-wrap'
-  } as any,
+    lineHeight: 18
+  },
   editCardBox: {
     paddingTop: 4
   },
@@ -650,17 +755,13 @@ const styles = StyleSheet.create({
     borderColor: '#334155'
   },
   formTextArea: {
-    minHeight: 180,
-    maxHeight: 320,
     textAlignVertical: 'top',
     lineHeight: 22,
     fontSize: 14
   },
   formTextAreaFocused: {
-    minHeight: 400,
-    maxHeight: 650,
     borderColor: '#38BDF8',
-    backgroundColor: '#0F172A'
+    backgroundColor: '#0B1120'
   },
   counterRow: {
     flexDirection: 'row',

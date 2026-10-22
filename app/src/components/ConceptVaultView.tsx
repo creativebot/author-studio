@@ -24,6 +24,11 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
   const [newContent, setNewContent] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
+  // Edit existing concept state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+
   const handleAddNewItem = async () => {
     if (!newTitle.trim() || !newContent.trim()) return;
 
@@ -58,6 +63,68 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
     }
   };
 
+  const handleStartEdit = (id: string, title: string, content: string) => {
+    setEditingId(id);
+    setEditTitle(title);
+    setEditContent(content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
+    setEditContent('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editTitle.trim() || !editContent.trim()) return;
+
+    try {
+      if (activeTab === 'theories') {
+        const item = project.concept_vault.theories.find(t => t.id === editingId);
+        if (item) {
+          item.name = editTitle.trim();
+          item.description = editContent; // Preserves newlines and breaks
+        }
+      } else if (activeTab === 'practices') {
+        const item = project.concept_vault.practices.find(p => p.id === editingId);
+        if (item) {
+          item.name = editTitle.trim();
+          item.protocol = editContent; // Preserves newlines and breaks
+        }
+      } else if (activeTab === 'axioms') {
+        const item = project.concept_vault.axioms.find(a => a.id === editingId);
+        if (item) {
+          item.context = editTitle.trim();
+          item.statement = editContent; // Preserves newlines and breaks
+        }
+      }
+
+      await ApiService.updateProject({ concept_vault: project.concept_vault });
+      handleCancelEdit();
+      onRefreshProject();
+    } catch (err: any) {
+      console.error('Failed to save edit:', err);
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    try {
+      if (activeTab === 'theories') {
+        project.concept_vault.theories = project.concept_vault.theories.filter(t => t.id !== id);
+      } else if (activeTab === 'practices') {
+        project.concept_vault.practices = project.concept_vault.practices.filter(p => p.id !== id);
+      } else if (activeTab === 'axioms') {
+        project.concept_vault.axioms = project.concept_vault.axioms.filter(a => a.id !== id);
+      }
+
+      await ApiService.updateProject({ concept_vault: project.concept_vault });
+      if (editingId === id) handleCancelEdit();
+      onRefreshProject();
+    } catch (err: any) {
+      console.error('Failed to delete item:', err);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -70,7 +137,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'theories' && styles.activeTab]}
-          onPress={() => setActiveTab('theories')}
+          onPress={() => { setActiveTab('theories'); handleCancelEdit(); }}
         >
           <Text style={[styles.tabText, activeTab === 'theories' && styles.activeTabText]}>
             🔬 Theories ({project.concept_vault.theories.length})
@@ -79,7 +146,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'practices' && styles.activeTab]}
-          onPress={() => setActiveTab('practices')}
+          onPress={() => { setActiveTab('practices'); handleCancelEdit(); }}
         >
           <Text style={[styles.tabText, activeTab === 'practices' && styles.activeTabText]}>
             ⚡ Protocols ({project.concept_vault.practices.length})
@@ -88,7 +155,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'axioms' && styles.activeTab]}
-          onPress={() => setActiveTab('axioms')}
+          onPress={() => { setActiveTab('axioms'); handleCancelEdit(); }}
         >
           <Text style={[styles.tabText, activeTab === 'axioms' && styles.activeTabText]}>
             📐 Axioms ({project.concept_vault.axioms.length})
@@ -97,7 +164,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'style' && styles.activeTab]}
-          onPress={() => setActiveTab('style')}
+          onPress={() => { setActiveTab('style'); handleCancelEdit(); }}
         >
           <Text style={[styles.tabText, activeTab === 'style' && styles.activeTabText]}>
             🎨 Style DNA ({project.style_guidelines.length})
@@ -110,8 +177,52 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
           <View>
             {project.concept_vault.theories.map((item) => (
               <View key={item.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardBody}>{item.description}</Text>
+                {editingId === item.id ? (
+                  <View style={styles.editCardBox}>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editTitle}
+                      onChangeText={setEditTitle}
+                      placeholder="Theory Name..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <TextInput
+                      style={[styles.formInput, styles.formTextArea]}
+                      value={editContent}
+                      onChangeText={setEditContent}
+                      multiline
+                      blurOnSubmit={false}
+                      placeholder="Description (Press Enter for line breaks and empty lines)..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <View style={styles.cardActionRow}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                        <Text style={styles.deleteBtnText}>Delete</Text>
+                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                          <Text style={styles.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
+                          <Text style={styles.submitText}>Save Changes</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => handleStartEdit(item.id, item.name || '', item.description || '')}
+                      >
+                        <Text style={styles.editBtnText}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.cardBody}>{item.description}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -121,8 +232,52 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
           <View>
             {project.concept_vault.practices.map((item) => (
               <View key={item.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardBody}>{item.protocol}</Text>
+                {editingId === item.id ? (
+                  <View style={styles.editCardBox}>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editTitle}
+                      onChangeText={setEditTitle}
+                      placeholder="Protocol Name..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <TextInput
+                      style={[styles.formInput, styles.formTextArea]}
+                      value={editContent}
+                      onChangeText={setEditContent}
+                      multiline
+                      blurOnSubmit={false}
+                      placeholder="Step-by-step protocol (Press Enter for line breaks and empty lines)..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <View style={styles.cardActionRow}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                        <Text style={styles.deleteBtnText}>Delete</Text>
+                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                          <Text style={styles.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
+                          <Text style={styles.submitText}>Save Changes</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => handleStartEdit(item.id, item.name || '', item.protocol || '')}
+                      >
+                        <Text style={styles.editBtnText}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.cardBody}>{item.protocol}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -132,8 +287,52 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
           <View>
             {project.concept_vault.axioms.map((item) => (
               <View key={item.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{item.context || 'Axiom'}</Text>
-                <Text style={styles.cardBody}>{item.statement}</Text>
+                {editingId === item.id ? (
+                  <View style={styles.editCardBox}>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editTitle}
+                      onChangeText={setEditTitle}
+                      placeholder="Context / Domain..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <TextInput
+                      style={[styles.formInput, styles.formTextArea]}
+                      value={editContent}
+                      onChangeText={setEditContent}
+                      multiline
+                      blurOnSubmit={false}
+                      placeholder="Axiom statement (Press Enter for line breaks and empty lines)..."
+                      placeholderTextColor="#64748B"
+                    />
+                    <View style={styles.cardActionRow}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
+                        <Text style={styles.deleteBtnText}>Delete</Text>
+                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                          <Text style={styles.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
+                          <Text style={styles.submitText}>Save Changes</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={styles.cardTitle}>{item.context || 'Axiom'}</Text>
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => handleStartEdit(item.id, item.context || '', item.statement || '')}
+                      >
+                        <Text style={styles.editBtnText}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.cardBody}>{item.statement}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -156,7 +355,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
           </View>
         )}
 
-        {activeTab !== 'style' && (
+        {activeTab !== 'style' && !editingId && (
           <View style={styles.addItemSection}>
             {isAdding ? (
               <View style={styles.addForm}>
@@ -170,7 +369,8 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                 <TextInput
                   style={[styles.formInput, styles.formTextArea]}
                   multiline
-                  placeholder="Explain the theory or protocol steps..."
+                  blurOnSubmit={false}
+                  placeholder="Explain the theory or protocol steps (Press Enter for line breaks and empty lines)..."
                   placeholderTextColor="#64748B"
                   value={newContent}
                   onChangeText={setNewContent}
@@ -257,11 +457,30 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   cardTitle: {
     color: '#38BDF8',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 4
+    flex: 1
+  },
+  editBtn: {
+    backgroundColor: '#1E293B',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  editBtnText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600'
   },
   cardDesc: {
     color: '#64748B',
@@ -271,8 +490,9 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#E2E8F0',
     fontSize: 13,
-    lineHeight: 20
-  },
+    lineHeight: 22,
+    whiteSpace: 'pre-wrap'
+  } as any,
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -288,7 +508,28 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#CBD5E1',
     fontSize: 13,
-    lineHeight: 18
+    lineHeight: 18,
+    whiteSpace: 'pre-wrap'
+  } as any,
+  editCardBox: {
+    paddingTop: 4
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10
+  },
+  deleteBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#7F1D1D'
+  },
+  deleteBtnText: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    fontWeight: '600'
   },
   addItemSection: {
     marginTop: 12
@@ -320,10 +561,12 @@ const styles = StyleSheet.create({
     padding: 10,
     color: '#F8FAFC',
     fontSize: 13,
-    marginBottom: 10
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   formTextArea: {
-    height: 80,
+    height: 110,
     textAlignVertical: 'top'
   },
   formActions: {

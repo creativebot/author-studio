@@ -281,7 +281,8 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
           <TextInput
             style={styles.textInput}
             multiline
-            placeholder={isRecording ? 'Listening to your voice dictation...' : 'Dictate or type your thoughts...'}
+            blurOnSubmit={false}
+            placeholder={isRecording ? 'Listening to your voice dictation...' : 'Dictate or type your thoughts (Enter for line breaks)...'}
             placeholderTextColor="#64748B"
             value={inputText}
             onChangeText={setInputText}
@@ -444,8 +445,9 @@ const styles = StyleSheet.create({
   messageText: {
     color: '#F8FAFC',
     fontSize: 14,
-    lineHeight: 22
-  },
+    lineHeight: 22,
+    whiteSpace: 'pre-wrap'
+  } as any,
   conceptsBox: {
     marginTop: 12,
     paddingTop: 10,
@@ -479,8 +481,9 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontSize: 12,
     marginTop: 2,
-    lineHeight: 16
-  },
+    lineHeight: 18,
+    whiteSpace: 'pre-wrap'
+  } as any,
   loadingBubble: {
     flexDirection: 'row',
     alignItems: 'center',

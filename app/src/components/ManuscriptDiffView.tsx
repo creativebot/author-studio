@@ -284,7 +284,8 @@ export const ManuscriptDiffView: React.FC<ManuscriptDiffViewProps> = ({
             <TextInput
               style={styles.manuscriptInput}
               multiline
-              placeholder="Dictate your thoughts, draft theory, or write protocols here..."
+              blurOnSubmit={false}
+              placeholder="Dictate your thoughts, draft theory, or write protocols here (Enter for line breaks)..."
               placeholderTextColor="#64748B"
               value={currentText}
               onChangeText={setCurrentText}
@@ -436,8 +437,9 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 15,
     lineHeight: 24,
-    textAlignVertical: 'top'
-  },
+    textAlignVertical: 'top',
+    whiteSpace: 'pre-wrap'
+  } as any,
   commandBar: {
     backgroundColor: '#0F172A',
     borderTopWidth: 1,
@@ -518,21 +520,25 @@ const styles = StyleSheet.create({
   },
   diffTextFlow: {
     fontSize: 15,
-    lineHeight: 24
-  },
+    lineHeight: 24,
+    whiteSpace: 'pre-wrap'
+  } as any,
   diffEqual: {
-    color: '#F8FAFC'
-  },
+    color: '#F8FAFC',
+    whiteSpace: 'pre-wrap'
+  } as any,
   diffDelete: {
     color: '#F87171',
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    textDecorationLine: 'line-through'
-  },
+    textDecorationLine: 'line-through',
+    whiteSpace: 'pre-wrap'
+  } as any,
   diffInsert: {
     color: '#4ADE80',
     backgroundColor: 'rgba(34, 197, 94, 0.2)',
-    fontWeight: '600'
-  },
+    fontWeight: '600',
+    whiteSpace: 'pre-wrap'
+  } as any,
   diffActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

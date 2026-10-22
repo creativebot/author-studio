@@ -19,12 +19,15 @@ interface SoundingBoardViewProps {
   onTelemetryUpdate: (llm: any, audio: any) => void;
 }
 
+const MAX_SOUNDING_BOARD_SYMBOLS = 5000;
+
 export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
   project,
   onRefreshProject,
   onTelemetryUpdate
 }) => {
   const [inputText, setInputText] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -279,13 +282,16 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
       <View style={styles.inputArea}>
         <View style={styles.inputRow}>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, isInputFocused && styles.textInputFocused]}
             multiline
             blurOnSubmit={false}
             placeholder={isRecording ? 'Listening to your voice dictation...' : 'Dictate or type your thoughts (Enter for line breaks)...'}
             placeholderTextColor="#64748B"
             value={inputText}
             onChangeText={setInputText}
+            maxLength={MAX_SOUNDING_BOARD_SYMBOLS}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
           />
 
           <TouchableOpacity
@@ -300,9 +306,14 @@ export const SoundingBoardView: React.FC<SoundingBoardViewProps> = ({
         </View>
 
         <View style={styles.bottomActions}>
-          <Text style={styles.tipText}>
-            {isRecording ? 'Tap ⏹️ when finished to transcribe' : 'Dictate freely on the go'}
-          </Text>
+          <View>
+            <Text style={styles.tipText}>
+              {isRecording ? 'Tap ⏹️ when finished to transcribe' : 'Dictate freely on the go (Enter for line breaks)'}
+            </Text>
+            <Text style={[styles.counterText, inputText.length > MAX_SOUNDING_BOARD_SYMBOLS * 0.9 && styles.counterWarning]}>
+              {inputText.length} / {MAX_SOUNDING_BOARD_SYMBOLS.toLocaleString()} symbols{isInputFocused ? ' • Expanded' : ''}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={[styles.sendBtn, (!inputText.trim() || isProcessing) && styles.btnDisabled]}
@@ -524,9 +535,25 @@ const styles = StyleSheet.create({
     padding: 10,
     color: '#F8FAFC',
     fontSize: 14,
-    maxHeight: 100,
+    lineHeight: 20,
+    minHeight: 52,
+    maxHeight: 120,
     borderWidth: 1,
     borderColor: '#334155'
+  },
+  textInputFocused: {
+    minHeight: 160,
+    maxHeight: 340,
+    borderColor: '#38BDF8',
+    backgroundColor: '#0F172A'
+  },
+  counterText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2
+  },
+  counterWarning: {
+    color: '#F59E0B'
   },
   recordBtn: {
     backgroundColor: '#334155',

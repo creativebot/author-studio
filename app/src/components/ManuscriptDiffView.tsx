@@ -264,7 +264,10 @@ export const ManuscriptDiffView: React.FC<ManuscriptDiffViewProps> = ({
         ) : (
           <View style={styles.editorContainer}>
             <View style={styles.editorToolbar}>
-              <Text style={styles.editorTitle}>Manuscript Section</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.editorTitle}>Manuscript Section</Text>
+                <Text style={styles.symbolBadge}>{currentText.length.toLocaleString()} symbols</Text>
+              </View>
               <View style={styles.editorToolbarRight}>
                 <TouchableOpacity
                   style={[styles.dictateBtn, isRecordingDictation && styles.dictateBtnActive]}
@@ -402,6 +405,14 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 14,
     fontWeight: '700'
+  },
+  symbolBadge: {
+    color: '#94A3B8',
+    fontSize: 11,
+    backgroundColor: '#1E293B',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4
   },
   editorToolbarRight: {
     flexDirection: 'row',

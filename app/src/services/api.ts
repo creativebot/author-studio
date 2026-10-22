@@ -1,4 +1,4 @@
-import { ProjectData, DiffSuggestion } from '../types';
+﻿import { ProjectData, DiffSuggestion } from '../types';
 
 let customBackendUrl = typeof window !== 'undefined' && window.location.origin.includes('onrender.com')
   ? window.location.origin

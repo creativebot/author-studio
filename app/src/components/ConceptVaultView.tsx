@@ -15,6 +15,9 @@ interface ConceptVaultViewProps {
   onRefreshProject: () => void;
 }
 
+const MAX_DESCRIPTION_SYMBOLS = 4000;
+const MAX_TITLE_SYMBOLS = 140;
+
 export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
   project,
   onRefreshProject
@@ -28,6 +31,7 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleAddNewItem = async () => {
     if (!newTitle.trim() || !newContent.trim()) return;
@@ -183,18 +187,38 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={styles.formInput}
                       value={editTitle}
                       onChangeText={setEditTitle}
+                      maxLength={MAX_TITLE_SYMBOLS}
                       placeholder="Theory Name..."
                       placeholderTextColor="#64748B"
                     />
                     <TextInput
-                      style={[styles.formInput, styles.formTextArea]}
+                      style={[
+                        styles.formInput,
+                        styles.formTextArea,
+                        focusedField === `edit_${item.id}` && styles.formTextAreaFocused
+                      ]}
                       value={editContent}
                       onChangeText={setEditContent}
+                      maxLength={MAX_DESCRIPTION_SYMBOLS}
+                      onFocus={() => setFocusedField(`edit_${item.id}`)}
+                      onBlur={() => setFocusedField(null)}
                       multiline
                       blurOnSubmit={false}
                       placeholder="Description (Press Enter for line breaks and empty lines)..."
                       placeholderTextColor="#64748B"
                     />
+                    <View style={styles.counterRow}>
+                      <Text style={styles.counterHint}>
+                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                      </Text>
+                      <Text style={[
+                        styles.counterText,
+                        editContent.length > MAX_DESCRIPTION_SYMBOLS * 0.9 && styles.counterWarning,
+                        editContent.length >= MAX_DESCRIPTION_SYMBOLS && styles.counterError
+                      ]}>
+                        {editContent.length} / {MAX_DESCRIPTION_SYMBOLS} symbols
+                      </Text>
+                    </View>
                     <View style={styles.cardActionRow}>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
@@ -238,18 +262,38 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={styles.formInput}
                       value={editTitle}
                       onChangeText={setEditTitle}
+                      maxLength={MAX_TITLE_SYMBOLS}
                       placeholder="Protocol Name..."
                       placeholderTextColor="#64748B"
                     />
                     <TextInput
-                      style={[styles.formInput, styles.formTextArea]}
+                      style={[
+                        styles.formInput,
+                        styles.formTextArea,
+                        focusedField === `edit_${item.id}` && styles.formTextAreaFocused
+                      ]}
                       value={editContent}
                       onChangeText={setEditContent}
+                      maxLength={MAX_DESCRIPTION_SYMBOLS}
+                      onFocus={() => setFocusedField(`edit_${item.id}`)}
+                      onBlur={() => setFocusedField(null)}
                       multiline
                       blurOnSubmit={false}
                       placeholder="Step-by-step protocol (Press Enter for line breaks and empty lines)..."
                       placeholderTextColor="#64748B"
                     />
+                    <View style={styles.counterRow}>
+                      <Text style={styles.counterHint}>
+                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                      </Text>
+                      <Text style={[
+                        styles.counterText,
+                        editContent.length > MAX_DESCRIPTION_SYMBOLS * 0.9 && styles.counterWarning,
+                        editContent.length >= MAX_DESCRIPTION_SYMBOLS && styles.counterError
+                      ]}>
+                        {editContent.length} / {MAX_DESCRIPTION_SYMBOLS} symbols
+                      </Text>
+                    </View>
                     <View style={styles.cardActionRow}>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
@@ -293,18 +337,38 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                       style={styles.formInput}
                       value={editTitle}
                       onChangeText={setEditTitle}
+                      maxLength={MAX_TITLE_SYMBOLS}
                       placeholder="Context / Domain..."
                       placeholderTextColor="#64748B"
                     />
                     <TextInput
-                      style={[styles.formInput, styles.formTextArea]}
+                      style={[
+                        styles.formInput,
+                        styles.formTextArea,
+                        focusedField === `edit_${item.id}` && styles.formTextAreaFocused
+                      ]}
                       value={editContent}
                       onChangeText={setEditContent}
+                      maxLength={MAX_DESCRIPTION_SYMBOLS}
+                      onFocus={() => setFocusedField(`edit_${item.id}`)}
+                      onBlur={() => setFocusedField(null)}
                       multiline
                       blurOnSubmit={false}
                       placeholder="Axiom statement (Press Enter for line breaks and empty lines)..."
                       placeholderTextColor="#64748B"
                     />
+                    <View style={styles.counterRow}>
+                      <Text style={styles.counterHint}>
+                        {focusedField === `edit_${item.id}` ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                      </Text>
+                      <Text style={[
+                        styles.counterText,
+                        editContent.length > MAX_DESCRIPTION_SYMBOLS * 0.9 && styles.counterWarning,
+                        editContent.length >= MAX_DESCRIPTION_SYMBOLS && styles.counterError
+                      ]}>
+                        {editContent.length} / {MAX_DESCRIPTION_SYMBOLS} symbols
+                      </Text>
+                    </View>
                     <View style={styles.cardActionRow}>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteItem(item.id)}>
                         <Text style={styles.deleteBtnText}>Delete</Text>
@@ -365,16 +429,36 @@ export const ConceptVaultView: React.FC<ConceptVaultViewProps> = ({
                   placeholderTextColor="#64748B"
                   value={newTitle}
                   onChangeText={setNewTitle}
+                  maxLength={MAX_TITLE_SYMBOLS}
                 />
                 <TextInput
-                  style={[styles.formInput, styles.formTextArea]}
+                  style={[
+                    styles.formInput,
+                    styles.formTextArea,
+                    focusedField === 'new' && styles.formTextAreaFocused
+                  ]}
                   multiline
                   blurOnSubmit={false}
                   placeholder="Explain the theory or protocol steps (Press Enter for line breaks and empty lines)..."
                   placeholderTextColor="#64748B"
                   value={newContent}
                   onChangeText={setNewContent}
+                  maxLength={MAX_DESCRIPTION_SYMBOLS}
+                  onFocus={() => setFocusedField('new')}
+                  onBlur={() => setFocusedField(null)}
                 />
+                <View style={styles.counterRow}>
+                  <Text style={styles.counterHint}>
+                    {focusedField === 'new' ? '✨ Expanded to fit up to 4,000 symbols' : 'Click to enlarge • Enter for line breaks'}
+                  </Text>
+                  <Text style={[
+                    styles.counterText,
+                    newContent.length > MAX_DESCRIPTION_SYMBOLS * 0.9 && styles.counterWarning,
+                    newContent.length >= MAX_DESCRIPTION_SYMBOLS && styles.counterError
+                  ]}>
+                    {newContent.length} / {MAX_DESCRIPTION_SYMBOLS} symbols
+                  </Text>
+                </View>
                 <View style={styles.formActions}>
                   <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsAdding(false)}>
                     <Text style={styles.cancelText}>Cancel</Text>
@@ -566,8 +650,40 @@ const styles = StyleSheet.create({
     borderColor: '#334155'
   },
   formTextArea: {
-    height: 110,
-    textAlignVertical: 'top'
+    minHeight: 180,
+    maxHeight: 320,
+    textAlignVertical: 'top',
+    lineHeight: 22,
+    fontSize: 14
+  },
+  formTextAreaFocused: {
+    minHeight: 400,
+    maxHeight: 650,
+    borderColor: '#38BDF8',
+    backgroundColor: '#0F172A'
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: -4,
+    marginBottom: 10,
+    paddingHorizontal: 4
+  },
+  counterHint: {
+    color: '#64748B',
+    fontSize: 11
+  },
+  counterText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  counterWarning: {
+    color: '#F59E0B'
+  },
+  counterError: {
+    color: '#EF4444'
   },
   formActions: {
     flexDirection: 'row',

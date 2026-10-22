@@ -1,4 +1,4 @@
-export interface StructureNode {
+﻿export interface StructureNode {
   id: string;
   title: string;
   type: 'concept' | 'part' | 'section' | 'practice' | 'note';

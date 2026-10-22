@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+﻿import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
 let webMediaRecorder: MediaRecorder | null = null;

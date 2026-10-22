@@ -49,16 +49,13 @@ export default function App() {
     } catch (err: any) {
       console.warn('Project fetch error:', err.message);
 
-      // If session expired or unauthorized, reset auth so Google login appears cleanly
+      // If session expired or unauthorized
       if (err.message && err.message.includes('Unauthorized')) {
-        ApiConfig.logout();
-        setAuthenticatedUser(null);
-        setProject(null);
-        setLoading(false);
-        return;
+        console.warn('Unauthorized error from server:', err.message);
+        setLoadError('Session verification failed. Click below to re-authenticate.');
+      } else {
+        setLoadError(err.message || 'Connecting to server...');
       }
-
-      setLoadError(err.message || 'Connecting to server...');
 
       // Fallback: If network error or cold start, keep using local backup or default
       const fallback = ApiConfig.getLocalProjectBackup();
@@ -93,7 +90,20 @@ export default function App() {
 
   const handleLoginSuccess = (user: any) => {
     setAuthenticatedUser(user);
-    setLoading(true);
+    if (!project) {
+      const fallback = ApiConfig.getLocalProjectBackup() || {
+        book_title: 'Untitled Non-Fiction Work',
+        author_thesis: '',
+        style_guidelines: ['Preserve authentic intellectual cadence'],
+        structure_tree: [
+          { id: 'node_1', title: 'Core Philosophy & Mechanics', type: 'part', order: 1, content: '', children: [] },
+          { id: 'node_2', title: 'Applied Protocols & Drills', type: 'part', order: 2, content: '', children: [] }
+        ],
+        concept_vault: { theories: [], practices: [], axioms: [], open_questions: [] },
+        sounding_board_history: []
+      };
+      setProject(fallback);
+    }
     loadProject();
   };
 

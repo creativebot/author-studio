@@ -25,8 +25,9 @@ export class AuthService {
       picture: user.picture || '',
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
     });
-    const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
-    return Buffer.from(`${payload}.${hmac}`).toString('base64');
+    const payloadB64 = Buffer.from(payload, 'utf-8').toString('base64');
+    const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('hex');
+    return `${payloadB64}.${hmac}`;
   }
 
   /**
@@ -35,13 +36,13 @@ export class AuthService {
   static verifySessionToken(token: string): GoogleUser | null {
     if (!token) return null;
     try {
-      const decoded = Buffer.from(token, 'base64').toString('utf-8');
-      const parts = decoded.split('.');
+      const parts = token.split('.');
       if (parts.length !== 2) return null;
-      const [payloadStr, hmac] = parts;
-      const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
+      const [payloadB64, hmac] = parts;
+      const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('hex');
       if (hmac !== expectedHmac) return null;
 
+      const payloadStr = Buffer.from(payloadB64, 'base64').toString('utf-8');
       const data = JSON.parse(payloadStr);
       if (Date.now() > data.exp) return null; // Expired
       if (data.email.toLowerCase() !== AUTHOR_EMAIL) return null; // Not author

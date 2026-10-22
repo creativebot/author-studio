@@ -1,0 +1,37 @@
+{
+  "book_title": "Untitled Non-Fiction Work",
+  "author_thesis": "",
+  "style_guidelines": [
+    "Retain the author's authentic cadence and logical progression.",
+    "Prioritize clarity, directness, and intellectual rigor.",
+    "Never replace nuanced conceptual arguments with generic self-help clichés."
+  ],
+  "rejected_edits": [],
+  "structure_tree": [
+    {
+      "id": "node_foundation",
+      "title": "Core Foundation & First Principles",
+      "type": "part",
+      "order": 1,
+      "content": "",
+      "summary": "Underlying theoretical principles and cognitive models.",
+      "children": []
+    },
+    {
+      "id": "node_practice",
+      "title": "Applied Protocols & Drills",
+      "type": "part",
+      "order": 2,
+      "content": "",
+      "summary": "Actionable execution, behavioral exercises, and diagnostic loops.",
+      "children": []
+    }
+  ],
+  "concept_vault": {
+    "theories": [],
+    "practices": [],
+    "axioms": [],
+    "open_questions": []
+  },
+  "sounding_board_history": []
+}
